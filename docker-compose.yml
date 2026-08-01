@@ -1,0 +1,63 @@
+services:
+  lavalink:
+    build: ./lavalink
+    container_name: music-bot-lavalink
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: 2333
+      LAVALINK_PASSWORD: ${LAVALINK_PASSWORD:-changeme_youshallnotpass}
+      # Avoid a Prometheus metrics NPE on Docker Desktop (cgroup detection).
+      # G1GC + fixed heap size avoids GC pauses that cause audio stutter.
+      JAVA_TOOL_OPTIONS: -XX:-UseContainerSupport -XX:+UseG1GC -Xms256m -Xmx512m
+      # LavaSrc Spotify integration (optional). Empty -> Spotify disabled.
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+      SPOTIFY_COUNTRY_CODE: ${SPOTIFY_COUNTRY_CODE:-US}
+      SPOTIFY_LOCALE: en
+    volumes:
+      - ./lavalink/application.yml:/opt/Lavalink/application.yml:ro
+      # Local audio files for the "local" source (see /play <file path>)
+      - ./music:/data/music
+    ports:
+      - "2333:2333" # Lavalink WebSocket + REST API
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -H \"Authorization: $LAVALINK_PASSWORD\" http://localhost:2333/v4/info"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  bot:
+    build: ./bot
+    container_name: music-bot
+    restart: unless-stopped
+    environment:
+      DISCORD_TOKEN: ${DISCORD_TOKEN:?DISCORD_TOKEN is required}
+      CLIENT_ID: ${CLIENT_ID:?CLIENT_ID is required}
+      GUILD_ID: ${GUILD_ID:-}
+      LAVALINK_HOST: lavalink
+      LAVALINK_PORT: 2333
+      LAVALINK_NAME: ${LAVALINK_NAME:-main}
+      LAVALINK_REGION: ${LAVALINK_REGION:-auto}
+      LAVALINK_PASSWORD: ${LAVALINK_PASSWORD:-changeme_youshallnotpass}
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+      PORT: ${PORT:-3000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DEFAULT_VOLUME: ${DEFAULT_VOLUME:-100}
+      AUTO_LEAVE_EMPTY_MS: ${AUTO_LEAVE_EMPTY_MS:-60000}
+      MAX_QUEUE_SIZE: ${MAX_QUEUE_SIZE:-1000}
+      MAX_PLAYLIST_TRACKS: ${MAX_PLAYLIST_TRACKS:-200}
+      MAX_SEARCH_RESULTS: ${MAX_SEARCH_RESULTS:-5}
+      REQUEST_TIMEOUT_MS: ${REQUEST_TIMEOUT_MS:-10000}
+    depends_on:
+      lavalink:
+        condition: service_healthy
+    ports:
+      - "${BOT_PORT:-3000}:3000" # health / metrics endpoint
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
