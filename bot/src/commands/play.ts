@@ -56,40 +56,38 @@ export const playCommand: BotCommand = {
         manager.search(lavalinkQuery, interaction.user.id, config.MAX_PLAYLIST_TRACKS),
       ]);
 
-      if (result.type === 'track') {
+      if (result.type === 'track' || result.type === 'search') {
+        const track = result.type === 'track' ? result.track : result.tracks[0];
+        if (!track) throw new Error('No tracks found.');
         if (player.playing || !player.queue.isEmpty) {
-          player.queue.add(result.track);
+          player.queue.add(track);
           await sendReply(interaction, {
-            embeds: [successEmbed(`Added **${result.track.title}** to the queue.`)],
+            embeds: [successEmbed(`Added **${track.title}** to the queue.`)],
           });
         } else {
           await sendReply(interaction, {
-            embeds: [successEmbed(`Playing **${result.track.title}**.`)],
+            embeds: [successEmbed(`Playing **${track.title}**.`)],
           });
-          await player.play(result.track);
+          await player.play(track);
         }
         return;
       }
 
-      const tracks = result.type === 'playlist' ? result.tracks : result.tracks;
+      const tracks = result.tracks;
 
       if (player.playing || !player.queue.isEmpty) {
         const added = player.queue.addMany(tracks);
-        const label =
-          result.type === 'playlist'
-            ? `Added **${added}** track(s) from **${result.name}** to the queue.`
-            : `Added **${added}** track(s) to the queue.`;
-        await sendReply(interaction, { embeds: [successEmbed(label)] });
+        await sendReply(interaction, {
+          embeds: [successEmbed(`Added **${added}** track(s) from **${result.name}** to the queue.`)],
+        });
         return;
       }
 
       const [first, ...rest] = tracks;
       player.queue.addMany(rest);
-      const label =
-        result.type === 'playlist'
-          ? `Playing playlist **${result.name}** (${tracks.length} tracks).`
-          : `Playing **${first?.title}**.`;
-      await sendReply(interaction, { embeds: [successEmbed(label)] });
+      await sendReply(interaction, {
+        embeds: [successEmbed(`Playing playlist **${result.name}** (${tracks.length} tracks).`)],
+      });
       if (first) await player.play(first);
     } catch (error) {
       await sendReply(interaction, { embeds: [errorEmbed('Play Error', (error as Error).message)] });
