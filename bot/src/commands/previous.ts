@@ -18,7 +18,7 @@ export const previousCommand: BotCommand = {
       return;
     }
 
-    await player.play(previous);
+    await player.playNow(previous);
     await sendReply(interaction, {
       embeds: [successEmbed(`Playing previous track **${previous.title}**.`)],
     });

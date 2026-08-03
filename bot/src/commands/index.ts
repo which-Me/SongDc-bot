@@ -23,6 +23,7 @@ import { previousCommand } from './previous.js';
 import { helpCommand } from './help.js';
 import { pingCommand } from './ping.js';
 import { statsCommand } from './stats.js';
+import { restartCommand } from './restart.js';
 
 const commandList: BotCommand[] = [
   playCommand,
@@ -47,6 +48,7 @@ const commandList: BotCommand[] = [
   helpCommand,
   pingCommand,
   statsCommand,
+  restartCommand,
 ];
 
 export function buildCommands(_context: BotContext): CommandCollection {

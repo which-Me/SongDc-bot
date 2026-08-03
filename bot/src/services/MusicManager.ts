@@ -100,7 +100,7 @@ export class MusicManager {
       defaultVolume: this.config.DEFAULT_VOLUME,
       autoLeaveMs: this.config.AUTO_LEAVE_EMPTY_MS,
       events: {
-        onNowPlaying: (musicPlayer) => this.handleNowPlaying(musicPlayer),
+        onNowPlaying: (musicPlayer, isNewTrack) => this.handleNowPlaying(musicPlayer, isNewTrack),
         onQueueEnd: (musicPlayer) => this.handleQueueEnd(musicPlayer),
         onIdleTimeout: (musicPlayer) => this.disconnect(musicPlayer.guildId),
         onError: (musicPlayer, message) => this.handleError(musicPlayer, message),
@@ -203,7 +203,7 @@ export class MusicManager {
     };
   }
 
-  private async handleNowPlaying(player: MusicPlayer): Promise<void> {
+  private async handleNowPlaying(player: MusicPlayer, isNewTrack: boolean): Promise<void> {
     const track = player.current;
     const channel = this.textChannels.get(player.guildId);
     if (!track || !channel) return;
@@ -226,15 +226,16 @@ export class MusicManager {
     if (track.artworkUrl) embed.setThumbnail(track.artworkUrl);
     if (track.uri) embed.setURL(track.uri);
 
-    await this.sendNowPlaying(player.guildId, embed);
+    await this.sendNowPlaying(player.guildId, embed, isNewTrack);
     this.updateActivity();
   }
 
-  private async sendNowPlaying(guildId: string, embed: EmbedBuilder): Promise<void> {
+  private async sendNowPlaying(guildId: string, embed: EmbedBuilder, isNewTrack: boolean): Promise<void> {
     const channel = this.textChannels.get(guildId);
     if (!channel) return;
 
-    const existing = this.nowPlayingMessages.get(guildId);
+    // A brand-new track gets a fresh card; only progress refreshes edit it.
+    const existing = isNewTrack ? null : this.nowPlayingMessages.get(guildId);
     if (existing && existing.editable) {
       try {
         await existing.edit({ embeds: [embed] });
@@ -255,7 +256,10 @@ export class MusicManager {
   private async handleQueueEnd(player: MusicPlayer): Promise<void> {
     this.updateActivity();
     if (player.autoplay && player.lastPlayed) {
-      await this.autoplayNext(player);
+      // Defer so autoplay never re-enters the player's serialized operation chain.
+      setImmediate(() => {
+        void this.autoplayNext(player);
+      });
     }
   }
 
@@ -268,8 +272,7 @@ export class MusicManager {
         result.type === 'search' ? result.tracks : result.type === 'track' ? [result.track] : result.tracks;
       const candidate = candidates.find((track) => track.identifier !== last.identifier) ?? candidates[0];
       if (!candidate) return;
-      player.queue.add(candidate);
-      await player.playNext();
+      await player.play(candidate);
     } catch (error) {
       logger.warn({ guild: player.guildId }, `Autoplay failed: ${error}`);
     }

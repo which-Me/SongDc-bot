@@ -25,6 +25,7 @@ const COMMANDS: Array<{ name: string; description: string }> = [
   { name: '/previous', description: 'Play the previous track.' },
   { name: '/ping', description: 'Check bot latency.' },
   { name: '/stats', description: 'Show bot statistics.' },
+  { name: '/restart', description: 'Hard-restart the bot process.' },
 ];
 
 export const helpCommand: BotCommand = {

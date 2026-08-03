@@ -28,7 +28,7 @@ export const jumpCommand: BotCommand = {
       return;
     }
 
-    await player.play(target);
+    await player.playNow(target);
     await sendReply(interaction, {
       embeds: [successEmbed(`Jumping to **${target.title}**.`)],
     });

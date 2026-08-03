@@ -59,36 +59,23 @@ export const playCommand: BotCommand = {
       if (result.type === 'track' || result.type === 'search') {
         const track = result.type === 'track' ? result.track : result.tracks[0];
         if (!track) throw new Error('No tracks found.');
-        if (player.playing || !player.queue.isEmpty) {
-          player.queue.add(track);
-          await sendReply(interaction, {
-            embeds: [successEmbed(`Added **${track.title}** to the queue.`)],
-          });
-        } else {
-          await sendReply(interaction, {
-            embeds: [successEmbed(`Playing **${track.title}**.`)],
-          });
-          await player.play(track);
-        }
-        return;
-      }
-
-      const tracks = result.tracks;
-
-      if (player.playing || !player.queue.isEmpty) {
-        const added = player.queue.addMany(tracks);
+        const { started } = await player.play(track);
         await sendReply(interaction, {
-          embeds: [successEmbed(`Added **${added}** track(s) from **${result.name}** to the queue.`)],
+          embeds: [successEmbed(started ? `Playing **${track.title}**.` : `Added **${track.title}** to the queue.`)],
         });
         return;
       }
 
-      const [first, ...rest] = tracks;
-      player.queue.addMany(rest);
+      const { started, added } = await player.playMany(result.tracks);
       await sendReply(interaction, {
-        embeds: [successEmbed(`Playing playlist **${result.name}** (${tracks.length} tracks).`)],
+        embeds: [
+          successEmbed(
+            started
+              ? `Playing playlist **${result.name}** (${added + 1} tracks).`
+              : `Added **${added}** track(s) from **${result.name}** to the queue.`,
+          ),
+        ],
       });
-      if (first) await player.play(first);
     } catch (error) {
       await sendReply(interaction, { embeds: [errorEmbed('Play Error', (error as Error).message)] });
     }
